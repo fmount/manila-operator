@@ -370,3 +370,72 @@ func GetExtraMounts() []map[string]interface{} {
 		},
 	}
 }
+
+// Topology functions
+
+// CreateManilaWithTopologySpec - It returns a ManilaSpec where a
+// topology is referenced. It also overrides the top-level parameter of
+// the top-level manila controller
+func CreateManilaWithTopologySpec() map[string]interface{} {
+	rawSpec := GetDefaultManilaSpec()
+	// Add top-level topologyRef
+	rawSpec["topologyRef"] = map[string]interface{}{
+		"name": manilaTest.ManilaTopologies[0].Name,
+	}
+	// Override topologyRef for manilaAPI subCR
+	rawSpec["manilaAPI"] = map[string]interface{}{
+		"topologyRef": map[string]interface{}{
+			"name": manilaTest.ManilaTopologies[1].Name,
+		},
+	}
+	// Override topologyRef for manilaScheduler subCR
+	rawSpec["manilaScheduler"] = map[string]interface{}{
+		"topologyRef": map[string]interface{}{
+			"name": manilaTest.ManilaTopologies[2].Name,
+		},
+	}
+	// Override topologyRef for manilaShare subCR
+	rawSpec["manilaShares"] = map[string]interface{}{
+		"share0": map[string]interface{}{
+			"topologyRef": map[string]interface{}{
+				"name": manilaTest.ManilaTopologies[3].Name,
+			},
+		},
+	}
+	return rawSpec
+}
+
+// GetSampleTopologySpec - A sample (and opinionated) Topology Spec used to
+// test Manila components
+func GetSampleTopologySpec() map[string]interface{} {
+	// Build the topology Spec
+	topologySpec := map[string]interface{}{
+		"topologySpreadConstraints": []map[string]interface{}{
+			{
+				"maxSkew":           1,
+				"topologyKey":       corev1.LabelHostname,
+				"whenUnsatisfiable": "ScheduleAnyway",
+				"labelSelector": map[string]interface{}{
+					"matchLabels": map[string]interface{}{
+						"service": manilaName.Name,
+					},
+				},
+			},
+		},
+	}
+	return topologySpec
+}
+
+// CreateTopology - Creates a Topology CR based on the spec passed as input
+func CreateTopology(topology types.NamespacedName, spec map[string]interface{}) client.Object {
+	raw := map[string]interface{}{
+		"apiVersion": "topology.openstack.org/v1beta1",
+		"kind":       "Topology",
+		"metadata": map[string]interface{}{
+			"name":      topology.Name,
+			"namespace": topology.Namespace,
+		},
+		"spec": spec,
+	}
+	return th.CreateUnstructured(raw)
+}

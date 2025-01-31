@@ -25,6 +25,7 @@ import (
 
 	//revive:disable-next-line:dot-imports
 	. "github.com/openstack-k8s-operators/lib-common/modules/common/test/helpers"
+	"github.com/openstack-k8s-operators/lib-common/modules/common/topology"
 	mariadb_test "github.com/openstack-k8s-operators/mariadb-operator/api/test/helpers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -931,6 +932,167 @@ var _ = Describe("Manila controller", func() {
 		})
 	})
 
+	When("Manila CR references a Topology", func() {
+		BeforeEach(func() {
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+			// Create Test Topologies
+			for _, t := range manilaTest.ManilaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+			rawSpec := GetDefaultManilaSpec()
+			// Reference a top-level topology
+			rawSpec["topologyRef"] = map[string]interface{}{
+				"name": manilaTest.ManilaTopologies[0].Name,
+			}
+			DeferCleanup(th.DeleteInstance, CreateManila(manilaTest.Instance, rawSpec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateManilaMessageBusSecret(manilaTest.Instance.Namespace, manilaTest.RabbitmqSecretName))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					manilaTest.Instance.Namespace,
+					GetManila(manilaTest.Instance).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			infra.SimulateTransportURLReady(manilaTest.ManilaTransportURL)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, manilaTest.MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(manilaTest.ManilaMemcached)
+			keystoneAPIName := keystone.CreateKeystoneAPI(manilaTest.Instance.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
+			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+			mariadb.SimulateMariaDBDatabaseCompleted(manilaTest.ManilaDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(manilaTest.ManilaDatabaseAccount)
+		})
+
+		It("Check the Topology has been applied to the resulting StatefulSets", func() {
+			th.SimulateJobSuccess(manilaTest.ManilaDBSync)
+			keystone.SimulateKeystoneServiceReady(manilaTest.Instance)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaAPI)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaScheduler)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaShares[0])
+			keystone.SimulateKeystoneEndpointReady(manilaTest.ManilaKeystoneEndpoint)
+
+			api := GetManilaAPI(manilaTest.ManilaAPI)
+			sched := GetManilaScheduler(manilaTest.ManilaScheduler)
+			share := GetManilaShare(manilaTest.ManilaShares[0])
+			Expect(api.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[0].Name))
+			Expect(sched.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[0].Name))
+			Expect(share.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[0].Name))
+		})
+
+		It("Update Topology reference", func() {
+			Eventually(func(g Gomega) {
+				manila := GetManila(manilaTest.Instance)
+				n := topology.TopoRef{
+					Name:      manilaTest.ManilaTopologies[1].Name,
+					Namespace: manilaTest.ManilaTopologies[1].Namespace,
+				}
+				manila.Spec.TopologyRef = &n
+				g.Expect(k8sClient.Update(ctx, manila)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(manilaTest.ManilaDBSync)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaAPI)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaScheduler)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaShares[0])
+
+			// The manila Spec has been updated
+			manila := GetManila(manilaTest.Instance)
+			Expect(manila.Spec.TopologyRef.Name).To(Equal(manilaTest.ManilaTopologies[1].Name))
+
+			api := GetManilaAPI(manilaTest.ManilaAPI)
+			sched := GetManilaScheduler(manilaTest.ManilaScheduler)
+			share := GetManilaShare(manilaTest.ManilaShares[0])
+			Expect(api.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[1].Name))
+			Expect(sched.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[1].Name))
+			Expect(share.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[1].Name))
+		})
+
+		It("Remove Topology reference", func() {
+			Eventually(func(g Gomega) {
+				manila := GetManila(manilaTest.Instance)
+				manila.Spec.TopologyRef = nil
+				g.Expect(k8sClient.Update(ctx, manila)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			th.SimulateJobSuccess(manilaTest.ManilaDBSync)
+
+			// Check the statefulSet has a default Affinity and no TopologySpreadConstraints:
+			// Affinity is applied by DistributePods function provided by lib-common, while
+			// TopologySpreadConstraints is part of the sample Topology used to test Glance
+			for _, svc := range []types.NamespacedName{manilaTest.ManilaAPI, manilaTest.ManilaScheduler, manilaTest.ManilaShares[0]} {
+				Expect(th.GetStatefulSet(svc).Spec.Template.Spec.TopologySpreadConstraints).To(BeNil())
+				Expect(th.GetStatefulSet(svc).Spec.Template.Spec.Affinity).ToNot(BeNil())
+			}
+		})
+	})
+
+	When("Manila components override the top-level TopologyRef", func() {
+		BeforeEach(func() {
+			// Build the topology Spec
+			topologySpec := GetSampleTopologySpec()
+			// Create Test Topologies
+			for _, t := range manilaTest.ManilaTopologies {
+				CreateTopology(t, topologySpec)
+			}
+			rawSpec := CreateManilaWithTopologySpec()
+			DeferCleanup(th.DeleteInstance, CreateManila(manilaTest.Instance, rawSpec))
+			DeferCleanup(k8sClient.Delete, ctx, CreateManilaMessageBusSecret(manilaTest.Instance.Namespace, manilaTest.RabbitmqSecretName))
+			DeferCleanup(
+				mariadb.DeleteDBService,
+				mariadb.CreateDBService(
+					manilaTest.Instance.Namespace,
+					GetManila(manilaTest.Instance).Spec.DatabaseInstance,
+					corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: 3306}},
+					},
+				),
+			)
+			infra.SimulateTransportURLReady(manilaTest.ManilaTransportURL)
+			DeferCleanup(infra.DeleteMemcached, infra.CreateMemcached(namespace, manilaTest.MemcachedInstance, memcachedSpec))
+			infra.SimulateMemcachedReady(manilaTest.ManilaMemcached)
+			keystoneAPIName := keystone.CreateKeystoneAPI(manilaTest.Instance.Namespace)
+			DeferCleanup(keystone.DeleteKeystoneAPI, keystoneAPIName)
+			keystoneAPI := keystone.GetKeystoneAPI(keystoneAPIName)
+			keystoneAPI.Status.APIEndpoints["internal"] = "http://keystone-internal-openstack.testing"
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Status().Update(ctx, keystoneAPI.DeepCopy())).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+			mariadb.SimulateMariaDBDatabaseCompleted(manilaTest.ManilaDatabaseName)
+			mariadb.SimulateMariaDBAccountCompleted(manilaTest.ManilaDatabaseAccount)
+		})
+
+		It("Check the Topology has been properly applied to the resulting StatefulSets", func() {
+			th.SimulateJobSuccess(manilaTest.ManilaDBSync)
+			keystone.SimulateKeystoneServiceReady(manilaTest.Instance)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaAPI)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaScheduler)
+			th.SimulateStatefulSetReplicaReady(manilaTest.ManilaShares[0])
+			keystone.SimulateKeystoneEndpointReady(manilaTest.ManilaKeystoneEndpoint)
+
+			api := GetManilaAPI(manilaTest.ManilaAPI)
+			sched := GetManilaScheduler(manilaTest.ManilaScheduler)
+			share := GetManilaShare(manilaTest.ManilaShares[0])
+			// Check the LastAppliedTopology has the expected value
+			Expect(api.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[1].Name))
+			Expect(sched.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[2].Name))
+			Expect(share.Status.LastAppliedTopology).To(Equal(manilaTest.ManilaTopologies[3].Name))
+			// Check the statefulSet has a TopologySpreadConstraints: Affinity is not applied because
+			// not provided by the Topology Sample used for this test
+			for _, svc := range []types.NamespacedName{manilaTest.ManilaAPI, manilaTest.ManilaScheduler, manilaTest.ManilaShares[0]} {
+				Expect(th.GetStatefulSet(svc).Spec.Template.Spec.TopologySpreadConstraints).ToNot(BeNil())
+				Expect(th.GetStatefulSet(svc).Spec.Template.Spec.Affinity).To(BeNil())
+			}
+		})
+	})
+
 	// Run MariaDBAccount suite tests.  these are pre-packaged ginkgo tests
 	// that exercise standard account create / update patterns that should be
 	// common to all controllers that ensure MariaDBAccount CRs.
@@ -1052,6 +1214,33 @@ var _ = Describe("Manila Webhook", func() {
 			ContainSubstring(
 				"invalid: spec.manilaAPI.override.service[wrooong]: " +
 					"Invalid value: \"wrooong\": invalid endpoint type: wrooong"),
+		)
+	})
+
+	It("rejects a wrong TopologyRef on a different namespace", func() {
+		spec := GetDefaultManilaSpec()
+		// Reference a top-level topology
+		spec["topologyRef"] = map[string]interface{}{
+			"name":      manilaTest.ManilaTopologies[0].Name,
+			"namespace": "foo",
+		}
+		raw := map[string]interface{}{
+			"apiVersion": "manila.openstack.org/v1beta1",
+			"kind":       "Manila",
+			"metadata": map[string]interface{}{
+				"name":      manilaTest.Instance.Name,
+				"namespace": manilaTest.Instance.Namespace,
+			},
+			"spec": spec,
+		}
+
+		unstructuredObj := &unstructured.Unstructured{Object: raw}
+		_, err := controllerutil.CreateOrPatch(
+			th.Ctx, th.K8sClient, unstructuredObj, func() error { return nil })
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(
+			ContainSubstring(
+				"Invalid value: \"namespace\": Customizing namespace field is not supported"),
 		)
 	})
 })

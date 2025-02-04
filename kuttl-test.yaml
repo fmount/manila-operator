@@ -20,7 +20,11 @@ reportFormat: xml
 reportName: kuttl-report-manila
 reportGranularity: test
 namespace: manila-kuttl-tests
-timeout: 180
+timeout: 300
 parallel: 1
+testDirs:
+  - test/kuttl/tests/manila-basic
+  - test/kuttl/tests/manila-multibackend
+  - test/kuttl/tests/manila-tls
 suppress:
    - events

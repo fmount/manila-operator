@@ -77,7 +77,7 @@ var _ = Describe("Manila controller", func() {
 			Manila := GetManila(manilaTest.Instance)
 			Expect(Manila.Status.Hash).To(BeEmpty())
 			Expect(Manila.Status.DatabaseHostname).To(Equal(""))
-			Expect(Manila.Status.TransportURLSecret).To(Equal(""))
+			Expect(Manila.Status.TransportURLSecret).To(BeEmpty())
 			Expect(Manila.Status.ManilaAPIReadyCount).To(Equal(int32(0)))
 			Expect(Manila.Status.ManilaSchedulerReadyCount).To(Equal(int32(0)))
 		})

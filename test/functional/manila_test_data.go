@@ -133,7 +133,7 @@ func GetManilaTestData(manilaName types.NamespacedName) ManilaTestData {
 		},
 		ManilaTransportURL: types.NamespacedName{
 			Namespace: manilaName.Namespace,
-			Name:      fmt.Sprintf("manila-%s-transport", manilaName.Name),
+			Name:      fmt.Sprintf("manila-%s-transport-rabbitmq", manilaName.Name),
 		},
 		ManilaMemcached: types.NamespacedName{
 			Namespace: manilaName.Namespace,

@@ -544,6 +544,8 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              notificationsURLSecret:
+                type: string
               override:
                 properties:
                   service:

@@ -30,6 +30,14 @@ const (
 	SvcCleanupHash = "servicecleanup"
 	// DeploymentHash hash used to detect changes
 	DeploymentHash = "deployment"
+	// TransportURLSecret messagingBus
+	MessagingBus = "messagingBus"
+	// TransportURLSecret notifications
+	NotificationBus = "notificationBus"
+	// NotificationDriverNoop
+	NotificationDriverNoop = "noop"
+	// NotificationDriverMessagingv2
+	NotificationDriverMessagingv2 = "messagingv2"
 )
 
 // ManilaSpec defines the desired state of Manila
@@ -128,6 +136,11 @@ type ManilaSpecBase struct {
 	// TopologyRef to apply the Topology defined by the associated CR referenced
 	// by name
 	TopologyRef *topologyv1.TopoRef `json:"topologyRef,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// RabbitMQ instance name used to request a transportURL that is used for
+	// notification purposes
+	NotificationBusInstance *string `json:"notificationBusInstance,omitempty"`
 }
 
 // ManilaStatus defines the observed state of Manila
@@ -142,7 +155,7 @@ type ManilaStatus struct {
 	DatabaseHostname string `json:"databaseHostname,omitempty"`
 
 	// TransportURLSecret - Secret containing RabbitMQ transportURL
-	TransportURLSecret string `json:"transportURLSecret,omitempty"`
+	TransportURLSecret map[string]string `json:"transportURLSecret,omitempty"`
 
 	// ReadyCount of Manila API instance
 	ManilaAPIReadyCount int32 `json:"manilaAPIReadyCount,omitempty"`

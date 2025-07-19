@@ -1725,7 +1725,7 @@ spec:
                   NodeSelector here acts as a default value and can be overridden by service
                   specific NodeSelector Settings.
                 type: object
-              notificationBusInstance:
+              notificationsBusInstance:
                 description: |-
                   RabbitMQ instance name used to request a transportURL that is used for
                   notification purposes
@@ -1852,7 +1852,7 @@ spec:
                   type: integer
                 description: ReadyCounts of Manila Share instances
                 type: object
-              notificationURLSecret:
+              notificationsURLSecret:
                 description: NotificationURLSecret - Secret containing RabbitMQ notificationURL
                 type: string
               observedGeneration:

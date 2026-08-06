@@ -1059,6 +1059,11 @@ func (r *ManilaAPIReconciler) generateServiceConfig(
 	templateParameters := map[string]any{
 		"LogFile": manilaapi.LogFile,
 	}
+
+	if instance.Spec.TLS.CaBundleSecretName != "" {
+		templateParameters["CaFilePath"] = tls.DownstreamTLSCABundlePath
+	}
+
 	configTemplates := []util.Template{
 		// Custom ConfigMap
 		{

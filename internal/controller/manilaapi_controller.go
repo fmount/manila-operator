@@ -70,6 +70,11 @@ type ManilaAPIReconciler struct {
 
 var keystoneServices = []map[string]string{
 	{
+		"type": manila.ServiceSFS,
+		"name": manila.ServiceSFS,
+		"desc": "Manila Shared File System Service",
+	},
+	{
 		"type": manila.ServiceTypeV2,
 		"name": manila.ServiceNameV2,
 		"desc": "Manila V2 Service",
@@ -611,6 +616,7 @@ func (r *ManilaAPIReconciler) reconcileInit(
 	// NOTE: when v1Enabled is false (sharev1 is disabled), apiEndpointsV1
 	// is not populated and the associated endpoint is not created.
 	apiEndpoints := map[string]map[string]string{
+		manila.ServiceSFS:    apiEndpointsV2,
 		manila.ServiceNameV2: apiEndpointsV2,
 		manila.ServiceName:   apiEndpointsV1,
 	}

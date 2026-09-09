@@ -16,14 +16,27 @@
       - tests?\/functional
       - ^renovate.json$
     vars:
+      # The operator content provider owns content_provider_registry_ip
+      # (which set_crc_insecure_registry already trusts), so only append
+      # the s2i buildset registry, which is served over plain HTTP.
+      cifmw_crc_additional_insecure_registries:
+        - "{{ s2i_ci_content.registry }}"
+      cifmw_crc_additional_allowed_registries:
+        - "{{ s2i_ci_content.registry }}"
       cifmw_kuttl_tests_env_vars:
         CEPH_HOSTNETWORK: true
         CEPH_TIMEOUT: 90
         CEPH_DATASIZE: "2Gi"
         PV_NUM: 20
-        MANILAAPI_DEPL_IMG: "{{ s2i_ci_content.registry }}/{{ s2i_ci_content.namespace }}/openstack-manila-api:{{ s2i_ci_content.tag }}"
-        MANILASCH_DEPL_IMG: "{{ s2i_ci_content.registry }}/{{ s2i_ci_content.namespace }}/openstack-manila-scheduler:{{ s2i_ci_content.tag }}"
-        MANILASHARE_DEPL_IMG: "{{ s2i_ci_content.registry }}/{{ s2i_ci_content.namespace }}/openstack-manila-share:{{ s2i_ci_content.tag }}"
+        # kuttl deploys the config/samples/layout CRs as-is, so the images
+        # come from the operator's RELATED_IMAGE_* defaults and not from
+        # install_yamls' MANILA*_DEPL_IMG (those only feed manila_deploy,
+        # which manila_kuttl never applies). kuttl-test.yaml consumes these
+        # to rewrite the defaults on the manila-operator CSV instead.
+        MANILA_API_IMAGE: "{{ s2i_ci_content.custom_container_images.manilaAPIImage }}"
+        MANILA_SCHEDULER_IMAGE: "{{ s2i_ci_content.custom_container_images.manilaSchedulerImage }}"
+        # manila-share has no scalar OpenStackVersion mapping, build the ref.
+        MANILA_SHARE_IMAGE: "{{ s2i_ci_content.registry }}/{{ s2i_ci_content.namespace }}/openstack-manila-share:{{ s2i_ci_content.tag }}"
       cifmw_kuttl_tests_operator_list:
         - manila
 

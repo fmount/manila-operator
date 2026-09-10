@@ -1,5 +1,29 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-   - script: |
-        oc kustomize ../../../../config/samples/layout/cephfs | oc apply -n $NAMESPACE -f -
+apiVersion: manila.openstack.org/v1beta1
+kind: Manila
+metadata:
+  name: manila
+  namespace: manila-kuttl-tests
+spec:
+  serviceUser: manila
+  customServiceConfig: |
+    [DEFAULT]
+    debug = true
+  databaseInstance: openstack
+  secret: osp-secret
+  databaseUser: manila
+  rabbitMqClusterName: rabbitmq
+  manilaAPI:
+    customServiceConfig: |
+      [DEFAULT]
+      enabled_share_protocols = nfs,cifs
+  manilaScheduler: {}
+  manilaShares:
+    share0:
+      customServiceConfig: |
+        [DEFAULT]
+        enabled_share_backends = dummy0
+        enabled_share_protocols = NFS,CIFS
+        [dummy0]
+        driver_handles_share_servers = False
+        share_backend_name = dummy0
+        share_driver = manila.tests.share.drivers.dummy.DummyDriver

@@ -26,11 +26,11 @@ const (
 	// Container image fall-back defaults
 
 	// ManilaAPIContainerImage is the fall-back container image for ManilaAPI
-	ManilaAPIContainerImage = "quay.io/podified-antelope-centos9/openstack-manila-api:current-podified"
+	ManilaAPIContainerImage = "quay.io/openstack-k8s-operators/openstack-manila-api:master-latest"
 	// ManilaSchedulerContainerImage is the fall-back container image for ManilaScheduler
-	ManilaSchedulerContainerImage = "quay.io/podified-antelope-centos9/openstack-manila-scheduler:current-podified"
+	ManilaSchedulerContainerImage = "quay.io/openstack-k8s-operators/openstack-manila-scheduler:master-latest"
 	// ManilaShareContainerImage is the fall-back container image for ManilaShare
-	ManilaShareContainerImage = "quay.io/podified-antelope-centos9/openstack-manila-share:current-podified"
+	ManilaShareContainerImage = "quay.io/openstack-k8s-operators/openstack-manila-share:master-latest"
 	//DBPurgeDefaultAge indicates the number of days of purging DB records
 	DBPurgeDefaultAge = 30
 	//DBPurgeDefaultSchedule is in crontab format, and the default runs the job once every day

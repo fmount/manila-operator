@@ -24,11 +24,11 @@ spec:
     debug = true
   manilaAPI:
     replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-manila-api:current-podified
+    containerImage: quay.io/openstack-k8s-operators/openstack-manila-api:master-latest
   manilaScheduler:
     replicas: 1
-    containerImage: quay.io/podified-antelope-centos9/openstack-manila-scheduler:current-podified
+    containerImage: quay.io/openstack-k8s-operators/openstack-manila-scheduler:master-latest
   manilaShares:
     share0:
       replicas: 1
-      containerImage: quay.io/podified-antelope-centos9/openstack-manila-share:current-podified
+      containerImage: quay.io/openstack-k8s-operators/openstack-manila-share:master-latest

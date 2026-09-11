@@ -12,25 +12,10 @@ spec:
   dbPurge:
     age: 30
     schedule: 1 0 * * *
-  extraMounts:
-  - extraVol:
-    - extraVolType: Ceph
-      mounts:
-      - mountPath: /etc/ceph
-        name: ceph
-        readOnly: true
-      propagation:
-      - share0
-      volumes:
-      - name: ceph
-        secret:
-          secretName: ceph-conf-files
-    name: v1
-    region: r1
   manilaAPI:
     customServiceConfig: |
       [DEFAULT]
-      enabled_share_protocols = cephfs
+      enabled_share_protocols = nfs,cifs
     override: {}
     replicas: 1
     resources: {}
@@ -49,15 +34,12 @@ spec:
     share0:
       customServiceConfig: |
         [DEFAULT]
-        enabled_share_backends = cephfs
-        [cephfs]
-        driver_handles_share_servers=False
-        share_backend_name=cephfs
-        share_driver=manila.share.drivers.cephfs.driver.CephFSDriver
-        cephfs_conf_path=/etc/ceph/ceph.conf
-        cephfs_auth_id=openstack
-        cephfs_cluster_name=ceph
-        cephfs_protocol_helper_type=CEPHFS
+        enabled_share_backends = dummy0
+        enabled_share_protocols = NFS,CIFS
+        [dummy0]
+        driver_handles_share_servers = False
+        share_backend_name = dummy0
+        share_driver = manila.tests.share.drivers.dummy.DummyDriver
       replicas: 1
       resources: {}
   memcachedInstance: memcached
@@ -371,9 +353,6 @@ spec:
           name: config-data
           readOnly: true
           subPath: my.cnf
-        - mountPath: /etc/ceph
-          name: ceph
-          readOnly: true
         - mountPath: /etc/manila/manila.conf.d
           name: config-data-custom
           readOnly: true
@@ -393,9 +372,6 @@ spec:
           name: config-data
           readOnly: true
           subPath: my.cnf
-        - mountPath: /etc/ceph
-          name: ceph
-          readOnly: true
         - mountPath: /etc/manila/manila.conf.d
           name: config-data-custom
           readOnly: true
@@ -410,9 +386,6 @@ spec:
         - name: config-data
           secret:
             secretName: manila-config-data
-        - name: ceph
-          secret:
-            secretName: ceph-conf-files
         - name: config-data-custom
           secret:
             secretName: manila-share-share0-config-data

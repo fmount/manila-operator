@@ -9,8 +9,7 @@ The target topology for this test is:
 
 1. one ManilaAPI object
 2. one ManilaScheduler object
-3. one ManilaShare object connected with a Ceph backend: the protocol used for
-   this use case is native CephFS
+3. one ManilaShare object connected to the `dummy0` backend
 
 The manila-basic steps are supposed to cover scaling up and scaling down the
 ManilaAPI service.
@@ -19,12 +18,10 @@ ManilaAPI service.
 
 As a prerequisite for this test, we assume:
 
-1. a running `Ceph` cluster (or a Ceph Pod deployed via the `install_yamls`
-   `make ceph` command)
-2. an existing `MariaDB/Galera` entity in the target namespace
-3. an existing `Keystone` deployed via keystone-operator
-4. an existing `RabbitMQ` cluster in the target namespace
-5. a running `manila-operator` deployed via the `install_yamls` `make manila`
+1. an existing `MariaDB/Galera` entity in the target namespace
+2. an existing `Keystone` deployed via keystone-operator
+3. an existing `RabbitMQ` cluster in the target namespace
+4. a running `manila-operator` deployed via the `install_yamls` `make manila`
    target
 
 These resources can be deployed via `install_yamls` using the `kuttl_common_prep`

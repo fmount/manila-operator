@@ -4,11 +4,10 @@ The "multibackend" manila kuttl test is supposed to cover asserts related to the
 main manila services deployed, as well as scaling up and scaling down multiple
 `ManilaShares` instances connected to different backends.
 To make things simpler and easy to test in the `openstack-k8s-operators` context,
-two `ManilaShares` instances are connected to the same `Ceph` cluster using two
-different protocols:
+two `ManilaShares` instances are connected to independent Manila dummy backends:
 
-1. `share0` is connected to `Ceph` using the `native-CephFS` protocol
-2. `share1` is connected to `Ceph` using the `CephNFS` protocol
+1. `share0` is connected to the `dummy0` backend
+2. `share1` is connected to the `dummy1` backend
 
 The test starts deploying a basic `ManilaShare` where only `share0` is active
 (step1).
@@ -25,9 +24,7 @@ The target topology for this test is:
 
 1. one ManilaAPI object
 2. one ManilaScheduler object
-3. two ManilaShare objects: both are connected with a Ceph clusters with two different protocols:
-   a. `share0` is connected to `Ceph` using the `native-CephFS` protocol
-   b. `share1` is connected to `Ceph` using the `CephNFS` protocol
+3. two ManilaShare objects, each connected to a separate Manila dummy backend
 
 The manila-multibackend steps are supposed to cover scaling up and scaling down
 ManilaShares (both `share0` and `share1`).
@@ -36,12 +33,10 @@ ManilaShares (both `share0` and `share1`).
 
 As a prerequisite for this test, we assume:
 
-1. a running `Ceph` cluster (or a Ceph Pod deployed via the `install_yamls`
-   `make ceph` command)
-2. an existing `MariaDB/Galera` entity in the target namespace
-3. an existing `Keystone` deployed via keystone-operator
-4. an existing `RabbitMQ` cluster in the target namespace
-5. a running `manila-operator` deployed via the `install_yamls` `make manila`
+1. an existing `MariaDB/Galera` entity in the target namespace
+2. an existing `Keystone` deployed via keystone-operator
+3. an existing `RabbitMQ` cluster in the target namespace
+4. a running `manila-operator` deployed via the `install_yamls` `make manila`
    target
 
 These resources can be deployed via `install_yamls` using the `kuttl_common_prep`

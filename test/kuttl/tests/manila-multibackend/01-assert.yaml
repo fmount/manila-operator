@@ -1,8 +1,7 @@
 #
 # - 1 manilaAPI
-# - 2 manilaScheduler
-# - 3 manilaShares
-# - 4 extraMounts
+# - 1 manilaScheduler
+# - 2 manilaShares
 
 apiVersion: manila.openstack.org/v1beta1
 kind: Manila
@@ -17,7 +16,7 @@ spec:
    manilaAPI:
        customServiceConfig: |
           [DEFAULT]
-          enabled_share_protocols=nfs,cephfs,cifs
+          enabled_share_protocols=nfs,cifs
        replicas: 1
        resources: {}
    manilaScheduler:
@@ -28,28 +27,22 @@ spec:
      share0:
        customServiceConfig: |
           [DEFAULT]
-          enabled_share_backends = cephfs
-          [cephfs]
-          driver_handles_share_servers=False
-          share_backend_name=cephfs
-          share_driver=manila.share.drivers.cephfs.driver.CephFSDriver
-          cephfs_conf_path=/etc/ceph/ceph.conf
-          cephfs_auth_id=openstack
-          cephfs_cluster_name=ceph
-          cephfs_protocol_helper_type=CEPHFS
+          enabled_share_backends = dummy0
+          enabled_share_protocols = NFS,CIFS
+          [dummy0]
+          driver_handles_share_servers = False
+          share_backend_name = dummy0
+          share_driver = manila.tests.share.drivers.dummy.DummyDriver
        replicas: 1
      share1:
        customServiceConfig: |
            [DEFAULT]
-           enabled_share_backends=cephfsnfs
-           [cephfsnfs]
-           driver_handles_share_servers=False
-           share_backend_name=cephfs
-           share_driver=manila.share.drivers.cephfs.driver.CephFSDriver
-           cephfs_auth_id=openstack
-           cephfs_cluster_name=ceph
-           cephfs_nfs_cluster_id=cephfs
-           cephfs_protocol_helper_type=NFS
+           enabled_share_backends = dummy1
+           enabled_share_protocols = NFS,CIFS
+           [dummy1]
+           driver_handles_share_servers = False
+           share_backend_name = dummy1
+           share_driver = manila.tests.share.drivers.dummy.DummyDriver
        replicas: 0
    passwordSelectors:
       service: ManilaPassword
